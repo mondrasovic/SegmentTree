@@ -4,35 +4,36 @@ namespace SegmentTree
 {
     public class RangeQueryProcessor<T>
     {
-        readonly T[] items;
-        readonly T[] segmentTree;
+        readonly T[] baseArray;
+        readonly T[] segTree;
         readonly T placeholder;
         readonly Func<T, T, T> accumulator;
 
         public T this[int index]
         {
-            get => items[index];
+            get => baseArray[index];
             set => UpdateValue(index, value);
         }
 
         public int Count
         {
-            get => items.Length;
+            get => baseArray.Length;
         }
 
-        public RangeQueryProcessor(T[] items, T placeholder,
+        public RangeQueryProcessor(T[] array, T placeholder,
                                    Func<T, T, T> accumulator)
         {
-            this.items = new T[items.Length];
-            items.CopyTo(this.items, 0);
+            CheckBaseArrayLength(array);
+            baseArray = new T[array.Length];
+            array.CopyTo(baseArray, 0);
 
-            var segmentTreeSize = CalcSegmentTreeArraySize(this.items.Length);
-            segmentTree = new T[segmentTreeSize];
+            var segTreeSize = CalcSegTreeArraySize(baseArray.Length);
+            segTree = new T[segTreeSize];
 
             this.placeholder = placeholder;
             this.accumulator = accumulator;
 
-            BuildSegmentTree();
+            BuildSegTree();
         }
 
         public T QueryRange(int startIndex, int endIndex)
@@ -40,16 +41,49 @@ namespace SegmentTree
             throw new NotImplementedException();
         }
 
-        static int CalcSegmentTreeArraySize(int underlyingArraySize)
+        static int CalcSegTreeArraySize(int underlyingArraySize)
         {
             var log = Math.Log(underlyingArraySize, 2);
             var exp = Math.Ceiling(log);
             return (int)((2 * Math.Pow(2, exp)) - 1);
         }
 
-        void BuildSegmentTree()
+        void CheckBaseArrayLength(T[] array)
         {
+            if (array.Length < 1)
+            {
+                throw new ArgumentException("base array must not be empty");
+            }
+        }
 
+        void BuildSegTree()
+        {
+            BuildSegTree(0, baseArray.Length - 1, 0);
+        }
+
+        void BuildSegTree(int baseArrayStartIndex, int baseArrayEndIndex,
+                          int segTreeRootIndex)
+        {
+            if (baseArrayStartIndex == baseArrayEndIndex)
+            {
+                segTree[segTreeRootIndex] = baseArray[baseArrayStartIndex];
+                return;
+            }
+
+            var baseArrayMidIndex = (baseArrayStartIndex + baseArrayEndIndex)
+                / 2;
+            var segTreeLeftChildIndex = (segTreeRootIndex * 2) + 1;
+            var segTreeRightChildIndex = (segTreeRootIndex * 2) + 2;
+
+            BuildSegTree(baseArrayStartIndex, baseArrayMidIndex,
+                         segTreeLeftChildIndex);
+            BuildSegTree(baseArrayMidIndex + 1, baseArrayEndIndex,
+                         segTreeRightChildIndex);
+
+            var leftVal = segTree[segTreeLeftChildIndex];
+            var rightVal = segTree[segTreeRightChildIndex];
+            var accumulatedVal = accumulator.Invoke(leftVal, rightVal);
+            segTree[segTreeRootIndex] = accumulatedVal;
         }
 
         void UpdateValue(int index, T value)
